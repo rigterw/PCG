@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -17,6 +18,7 @@ public class TileGrid : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        Debug.Log("start");
         if (!CheckSettings())
             return;
         SpawnLevel();
@@ -98,6 +100,7 @@ public class TileGrid : MonoBehaviour
         level.tileTypes = new byte[levelSize.x, levelSize.y];
 
         //dig rooms in the wall grid
+        Debug.Log("start rooms");
         Vector4[,] rooms = GenerateRooms();
         for(int i = 0; i < rooms.GetLength(0); i++){
             for(int j = 0; j < rooms.GetLength(1); j++){
@@ -105,6 +108,11 @@ public class TileGrid : MonoBehaviour
             }
         }
 
+        Debug.Log("start hallways");
+        Vector4[] hallways = GenerateHallways(rooms);
+        for(int i = 0; i < hallways.Length; i++){
+            SetRoom(ref level.tileTypes, hallways[i]);
+        }
         return level;
     }
 
@@ -114,7 +122,6 @@ public class TileGrid : MonoBehaviour
     /// <param name="tileMap">The tilemap of the level</param>
     /// <param name="room">The data of the room</param>
     private void SetRoom(ref byte[,] tileMap, Vector4 room){
-        Debug.Log(room);
         for (int x = (int)room.x; x <= (int)room.z; x++)
         {
             for (int y = (int)room.y; y <= (int)room.w; y++)
@@ -204,5 +211,146 @@ public class TileGrid : MonoBehaviour
         } while (true);
 
         return values;
+    }
+
+
+    private Vector4[] GenerateHallways(Vector4[,] rooms){
+        int columns = rooms.GetLength(0);
+        int rows = rooms.GetLength(1);
+        int nRooms = rows * columns;
+        Debug.Log($"{nRooms} rooms {columns} by {rows}");
+
+        byte[] usedSides = InitUsedSides(rows, columns);
+
+        List<int> usedRooms = new()
+        {
+            Random.Range(0, nRooms)
+        };
+        List<Vector4> hallways = new();
+        
+            int counter = 0;
+        while(usedRooms.Count < nRooms-1){
+            counter++;
+
+            if (counter > 10000){
+                Debug.Log($"roomLoop, found {usedRooms.Count -1} paths");
+              break;
+            }
+            int nextRoomId = usedRooms[Random.Range(0, usedRooms.Count)];
+
+            //if room has no free sides left, continue
+            if (usedSides[nextRoomId] == 15)
+                continue;
+
+            int otherRoomId;
+            byte nextSide;
+            int counter2 = 0;
+            do
+            {
+                counter2++;
+                //pick a random side of the room that still is available.
+                do
+                {
+                    nextSide = (byte)(1 << Random.Range(0, 4));
+                } while ((usedSides[nextRoomId] & nextSide) != 0);
+
+                //Get the other room id
+                otherRoomId = nextSide switch
+                {
+                    1 => nextRoomId - columns,
+                    2 => nextRoomId + 1,
+                    4 => nextRoomId + columns,
+                    _ => nextRoomId - 1,
+                };
+                if(counter2 > 100){
+                    Debug.Log($"couldn't find a neighbour room for {nextRoomId}, usedSides: {usedSides[nextRoomId]}");
+                    break;
+                }
+            } while (usedRooms.Contains(otherRoomId));
+
+            if (counter2 > 100)
+                continue;
+
+            Debug.Log($"{nextRoomId}, {otherRoomId} dir: {nextSide}");
+
+            int firstId = Math.Min(nextRoomId, otherRoomId);
+            int secondId = Math.Max(nextRoomId, otherRoomId);
+
+
+            Vector4 hallway = GenerateHallway(firstId, secondId, nextSide == 2 || nextSide == 8, rooms, ref usedSides, columns);
+
+            //If no hallway can be created, skip
+            // if (hallway == Vector4.zero)
+            //     continue;
+            Debug.Log($"found hallway between {nextRoomId} and {otherRoomId} {nextSide == 2 || nextSide == 8}");
+            hallways.Add(hallway);
+            usedRooms.Add(otherRoomId);
+        }
+
+
+        return hallways.ToArray();
+    }
+
+
+    /// <summary>
+    /// Generate a hallway between 2 rooms
+    /// </summary>
+    /// <param name="room1">The room closest to 0,0</param>
+    /// <param name="room2">The room furthest away from 0,0</param>
+    /// <param name="horizontal">If the rooms are horizontal or vertical located of eachother</param>
+    /// <returns>A vector4 containing the points of the hallway</returns>
+    private Vector4 GenerateHallway(int room1Id, int room2Id, bool horizontal, Vector4[,] rooms, ref byte[] sides, int columns){
+        Debug.Log($"r2: {room2Id}, on {room2Id/columns}, {room2Id % columns} r1: {room1Id}, on {room1Id / columns}, {room1Id % columns}");
+        Vector4 room1 = rooms[room1Id % columns, room1Id / columns];
+        Vector4 room2 = rooms[room2Id % columns, room2Id / columns];
+
+        Vector2 room1Bounds = horizontal ? new Vector2(room1.y, room1.w) : new Vector2(room1.x, room1.z);
+        Vector2 room2Bounds = horizontal ? new Vector2(room2.y, room2.w) : new Vector2(room2.x, room2.z);
+
+
+        int p1 = (int)Random.Range(room1Bounds.x, room1Bounds.y);
+        int p2 = (int)Random.Range(room2Bounds.x, room2Bounds.y);
+
+        if (horizontal){
+            Vector4 hallway = new Vector4(room1.z, p1, room2.x, p2);
+
+            sides[room1Id] |= 4;
+            sides[room2Id] |= 1;
+
+            return hallway;
+        }
+        else{
+            Vector4 hallway = new Vector4(p1, room1.w, p2, room2.y);
+
+            sides[room1Id] |= 2;
+            sides[room2Id] |= 8;
+            return hallway;
+        }
+
+    }
+
+    private byte[] InitUsedSides(int rows, int columns){
+        int nRooms = rows * columns;
+        byte[] usedSides = new byte[nRooms];
+
+        for(int i = 0; i < columns; i++){
+            usedSides[i] |= 1;
+        }
+
+        //right row
+        for (int i = 1; i <= rows; i++)
+        {
+            usedSides[i * columns -1] |= 2;
+        }
+
+        for(int i = 0; i < columns; i++){
+            usedSides[(rows - 1) * columns + i] |=4;
+        }
+        //left row
+        for(int i = 0; i < rows; i++){
+            usedSides[i * columns] |=8;
+        }
+
+        return usedSides;
     }
 }
