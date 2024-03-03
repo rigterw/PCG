@@ -111,7 +111,7 @@ public class TileGrid : MonoBehaviour
         Debug.Log("start hallways");
         Vector4[] hallways = GenerateHallways(rooms);
         for(int i = 0; i < hallways.Length; i++){
-            SetRoom(ref level.tileTypes, hallways[i]);
+            SetHallway(ref level.tileTypes, hallways[i]);
         }
         return level;
     }
@@ -128,6 +128,33 @@ public class TileGrid : MonoBehaviour
             {
                 tileMap[x, y] = 1;
             }
+        }
+    }
+
+    private void SetHallway(ref byte[,] tileMap, Vector4 hallway)
+    {
+        Vector2Int pos = new Vector2Int((int)hallway.x, (int)hallway.y);
+        Vector2Int destination = new Vector2Int((int)hallway.z, (int)hallway.w);
+
+        int vx = pos.x > destination.x ? -1 : 1;
+        int vy = pos.y > destination.y ? -1 : 1;
+
+        while(pos != destination){
+
+
+            bool HorizontalMove = Random.Range(0, 2) == 1;
+
+            if ((HorizontalMove && pos.x == destination.x) || (!HorizontalMove && pos.y == destination.y))
+                continue;
+
+            if(HorizontalMove){
+
+                pos.x += vx;
+            }else{
+                pos.y += vy;
+            }
+
+            tileMap[pos.x, pos.y] = 1;
         }
     }
 
