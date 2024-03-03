@@ -319,10 +319,12 @@ public class TileGrid : MonoBehaviour
     /// <param name="horizontal">If the rooms are horizontal or vertical located of eachother</param>
     /// <returns>A vector4 containing the points of the hallway</returns>
     private Vector4 GenerateHallway(int room1Id, int room2Id, bool horizontal, Vector4[,] rooms, ref byte[] sides, int columns){
-       // Debug.Log($"r2: {room2Id}, on {room2Id/columns}, {room2Id % columns} r1: {room1Id}, on {room1Id / columns}, {room1Id % columns}");
+
         Vector4 room1 = rooms[room1Id % columns, room1Id / columns];
         Vector4 room2 = rooms[room2Id % columns, room2Id / columns];
 
+
+        //get for each room the min and max of where a hallway can be connected
         Vector2 room1Bounds = horizontal ? new Vector2(room1.y, room1.w) : new Vector2(room1.x, room1.z);
         Vector2 room2Bounds = horizontal ? new Vector2(room2.y, room2.w) : new Vector2(room2.x, room2.z);
 
@@ -345,7 +347,6 @@ public class TileGrid : MonoBehaviour
             sides[room2Id] |= 8;
             return hallway;
         }
-
     }
 
     private byte[] InitUsedSides(int rows, int columns){
