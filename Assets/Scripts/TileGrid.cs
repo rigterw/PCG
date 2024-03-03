@@ -8,6 +8,7 @@ using Random = UnityEngine.Random;
 public class TileGrid : MonoBehaviour
 {
     [SerializeField] GameObject[] tilePrefabs;
+    [SerializeField] GameObject[] levelObjectsPrefabs;
     int tileSize = 5;
 
     [SerializeField] Vector2Int levelSize;
@@ -86,6 +87,8 @@ public class TileGrid : MonoBehaviour
                 tile.name = $"{x},{y}";
             }
         }
+
+        SpawnObjects(level.objects);
     }
 
 
@@ -102,13 +105,11 @@ public class TileGrid : MonoBehaviour
         //dig rooms in the wall grid
         Debug.Log("start rooms");
         Vector4[,] rooms = GenerateRooms(level);
-        for(int i = 0; i < rooms.GetLength(0); i++){
-            for(int j = 0; j < rooms.GetLength(1); j++){
-            }
-        }
 
         Debug.Log("start hallways");
         int[] roomOrder = GenerateHallways(rooms, level).ToArray();
+
+        level.objects = GenerateLevelObjects(rooms, roomOrder);
         return level;
     }
 
@@ -323,9 +324,8 @@ public class TileGrid : MonoBehaviour
     /// <returns>A vector4 containing the points of the hallway</returns>
     private Vector4 GenerateHallway(int room1Id, int room2Id, bool horizontal, Vector4[,] rooms, ref byte[] sides, int columns){
 
-        Vector4 room1 = rooms[room1Id % columns, room1Id / columns];
-        Vector4 room2 = rooms[room2Id % columns, room2Id / columns];
-
+        Vector4 room1 = GetRoom(room1Id, rooms);
+        Vector4 room2 = GetRoom(room2Id, rooms);
 
         //get for each room the min and max of where a hallway can be connected
         Vector2 room1Bounds = horizontal ? new Vector2(room1.y, room1.w) : new Vector2(room1.x, room1.z);
@@ -352,6 +352,22 @@ public class TileGrid : MonoBehaviour
         }
     }
 
+    private List<Tuple<DungeonObject, Vector2>> GenerateLevelObjects(Vector4[,] rooms, int[] roomIds){
+        List<Tuple<DungeonObject, Vector2>> objects = new()
+        {
+            Tuple.Create(DungeonObject.player, roomCenter(roomIds[0], rooms)),
+            Tuple.Create(DungeonObject.finish, roomCenter(roomIds[roomIds.Length-1], rooms))
+
+        };
+        return objects;
+    } 
+
+    private void SpawnObjects(List<Tuple<DungeonObject, Vector2>> objects){
+        foreach(Tuple<DungeonObject, Vector2> obj in objects){
+            Instantiate(levelObjectsPrefabs[(int)obj.Item1], obj.Item2, Unity.Mathematics.quaternion.identity);
+        }
+    }
+
     private byte[] InitUsedSides(int rows, int columns){
         int nRooms = rows * columns;
         byte[] usedSides = new byte[nRooms];
@@ -375,5 +391,15 @@ public class TileGrid : MonoBehaviour
         }
 
         return usedSides;
+    }
+
+    private Vector4 GetRoom(int id, Vector4[,] rooms){
+        int columns = rooms.GetLength(0);
+        return rooms[id % columns, id / columns];
+    }
+    private Vector2 roomCenter(int id, Vector4[,] rooms){
+
+        Vector4 room = GetRoom(id, rooms);
+        return new Vector2((room.x + room.z) / 2, (room.y + room.w) / 2) * tileSize;
     }
 }
