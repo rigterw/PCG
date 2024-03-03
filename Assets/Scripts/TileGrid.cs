@@ -127,6 +127,12 @@ public class TileGrid : MonoBehaviour
         }
     }
 
+
+    /// <summary>
+    /// Function that creates a hallway in the tilemap
+    /// </summary>
+    /// <param name="tileMap">The map of all the tiles</param>
+    /// <param name="hallway">Vector4 containing 2 connectionpoints of the hallway</param>
     private void SetHallway(ref byte[,] tileMap, Vector4 hallway)
     {
         Vector2Int pos = new Vector2Int((int)hallway.x, (int)hallway.y);
@@ -140,11 +146,11 @@ public class TileGrid : MonoBehaviour
 
             bool HorizontalMove = Random.Range(0, 2) == 1;
 
+            //make sure that the hallway never goes past the point
             if ((HorizontalMove && (pos.x == destination.x || pos.y + vy == destination.y)) || (!HorizontalMove && (pos.y == destination.y || pos.x + vx == destination.x)))
                 continue;
 
             if(HorizontalMove){
-
                 pos.x += vx;
             }else{
                 pos.y += vy;

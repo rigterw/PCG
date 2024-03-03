@@ -9,7 +9,6 @@ public struct LevelData{
 }
 
 public enum DungeonObject {
-    player,
     key,
     weapon,
     enemy
