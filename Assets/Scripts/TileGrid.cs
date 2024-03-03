@@ -101,18 +101,14 @@ public class TileGrid : MonoBehaviour
 
         //dig rooms in the wall grid
         Debug.Log("start rooms");
-        Vector4[,] rooms = GenerateRooms();
+        Vector4[,] rooms = GenerateRooms(level);
         for(int i = 0; i < rooms.GetLength(0); i++){
             for(int j = 0; j < rooms.GetLength(1); j++){
-                SetRoom(ref level.tileTypes, rooms[i, j]);
             }
         }
 
         Debug.Log("start hallways");
-        Vector4[] hallways = GenerateHallways(rooms);
-        for(int i = 0; i < hallways.Length; i++){
-            SetHallway(ref level.tileTypes, hallways[i]);
-        }
+        int[] roomOrder = GenerateHallways(rooms, level).ToArray();
         return level;
     }
 
@@ -162,7 +158,7 @@ public class TileGrid : MonoBehaviour
     /// Function that generates where rooms will be
     /// </summary>
     /// <returns>An array of vector4s, In this vector4 x and y are the top left cord, z and w the bottom right</returns>
-    private Vector4[,] GenerateRooms()
+    private Vector4[,] GenerateRooms(LevelData level)
     {
         //Split the level into sections
         List<int> xLines = Split(minRoomSize.x, maxRoomSize.x, levelSize.x);
@@ -178,7 +174,10 @@ public class TileGrid : MonoBehaviour
             minY = 1;
             for(int j = 0; j < yLines.Count; j++){
                 maxY = yLines[j];
-                rooms[i, j] = GenerateRoom(minX, minY, maxX, maxY);
+                Vector4 room = GenerateRoom(minX, minY, maxX, maxY);
+                rooms[i, j] = room;
+                SetRoom(ref level.tileTypes, room);
+
                 minY = maxY + 1;
             }
             minX = maxX +1;
@@ -244,8 +243,8 @@ public class TileGrid : MonoBehaviour
     /// Function that selects which points the hallways will lead to
     /// </summary>
     /// <param name="rooms">The rooms that need to be connected</param>
-    /// <returns>An array of vector4s for each hallway, representing a start point (x,y) and end point of the hallway (z,w)</returns>
-    private Vector4[] GenerateHallways(Vector4[,] rooms){
+    /// <returns>A list of all rooms in the order that they received an hallway</returns>
+    private List<int> GenerateHallways(Vector4[,] rooms, LevelData level){
         int columns = rooms.GetLength(0);
         int rows = rooms.GetLength(1);
         int nRooms = rows * columns;
@@ -253,7 +252,6 @@ public class TileGrid : MonoBehaviour
         //An array of bitmaps that store for each room which sides have some sort of connection
         byte[] usedSides = InitUsedSides(rows, columns);
 
-        List<Vector4> hallways = new();
         List<int> usedRooms = new()
         {
             Random.Range(0, nRooms)
@@ -301,13 +299,12 @@ public class TileGrid : MonoBehaviour
             int firstId = Math.Min(nextRoomId, otherRoomId);
             int secondId = Math.Max(nextRoomId, otherRoomId);
 
-
             Vector4 hallway = GenerateHallway(firstId, secondId, nextSide == 2 || nextSide == 8, rooms, ref usedSides, columns);
 
-            hallways.Add(hallway);
+            SetHallway(ref level.tileTypes, hallway);
             usedRooms.Add(otherRoomId);
         }
-        return hallways.ToArray();
+        return usedRooms;
     }
 
 
