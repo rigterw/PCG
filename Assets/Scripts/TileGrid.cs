@@ -144,7 +144,7 @@ public class TileGrid : MonoBehaviour
 
             bool HorizontalMove = Random.Range(0, 2) == 1;
 
-            if ((HorizontalMove && pos.x == destination.x) || (!HorizontalMove && pos.y == destination.y))
+            if ((HorizontalMove && (pos.x == destination.x || pos.y + vy == destination.y)) || (!HorizontalMove && (pos.y == destination.y || pos.x + vx == destination.x)))
                 continue;
 
             if(HorizontalMove){
@@ -172,7 +172,7 @@ public class TileGrid : MonoBehaviour
 
 
         //give each section a room with a random size and position within the section
-        int minX = 1, minY = 1, maxX, maxY;
+        int minX = 1, minY, maxX, maxY;
         for(int i = 0; i < xLines.Count; i++){
             maxX = xLines[i];
             minY = 1;
@@ -240,29 +240,28 @@ public class TileGrid : MonoBehaviour
         return values;
     }
 
-
+    /// <summary>
+    /// Function that selects which points the hallways will lead to
+    /// </summary>
+    /// <param name="rooms">The rooms that need to be connected</param>
+    /// <returns>An array of vector4s for each hallway, representing a start point (x,y) and end point of the hallway (z,w)</returns>
     private Vector4[] GenerateHallways(Vector4[,] rooms){
         int columns = rooms.GetLength(0);
         int rows = rooms.GetLength(1);
         int nRooms = rows * columns;
-        Debug.Log($"{nRooms} rooms {columns} by {rows}");
 
+        //An array of bitmaps that store for each room which sides have some sort of connection
         byte[] usedSides = InitUsedSides(rows, columns);
 
+        List<Vector4> hallways = new();
         List<int> usedRooms = new()
         {
             Random.Range(0, nRooms)
         };
-        List<Vector4> hallways = new();
         
-            int counter = 0;
+        //create hallways between rooms till all rooms are connected
         while(usedRooms.Count < nRooms){
-            counter++;
 
-            if (counter > 10000){
-                Debug.Log($"roomLoop, ");
-              break;
-            }
             int nextRoomId = usedRooms[Random.Range(0, usedRooms.Count)];
 
             //if room has no free sides left, continue
@@ -271,10 +270,10 @@ public class TileGrid : MonoBehaviour
 
             int otherRoomId;
             byte nextSide;
-            int counter2 = 0;
+            int counter = 0;//counter prevents the room to get in an infinite loop if it can't find a neighbour
             do
             {
-                counter2++;
+                counter++;
                 //pick a random side of the room that still is available.
                 do
                 {
@@ -289,16 +288,15 @@ public class TileGrid : MonoBehaviour
                     4 => nextRoomId - columns,
                     _ => nextRoomId - 1,
                 };
-                if(counter2 > 100){
-                    Debug.Log($"couldn't find a neighbour room for {nextRoomId}, usedSides: {usedSides[nextRoomId]}");
+
+                //If a neighbour can't be found, start with a new room
+                if(counter > 100){
                     break;
                 }
             } while (usedRooms.Contains(otherRoomId));
 
-            if (counter2 > 100)
+            if (counter > 100)
                 continue;
-
-            Debug.Log($"{nextRoomId}, {otherRoomId} dir: {nextSide}");
 
             int firstId = Math.Min(nextRoomId, otherRoomId);
             int secondId = Math.Max(nextRoomId, otherRoomId);
@@ -306,12 +304,9 @@ public class TileGrid : MonoBehaviour
 
             Vector4 hallway = GenerateHallway(firstId, secondId, nextSide == 2 || nextSide == 8, rooms, ref usedSides, columns);
 
-            Debug.Log($"found hallway between {nextRoomId} and {otherRoomId} {nextSide == 2 || nextSide == 8}, from {hallway.x}, {hallway.y} to {hallway.z}, {hallway.w}");
             hallways.Add(hallway);
             usedRooms.Add(otherRoomId);
         }
-
-        Debug.Log($"found {hallways.Count} out of {nRooms - 1} paths");
         return hallways.ToArray();
     }
 
