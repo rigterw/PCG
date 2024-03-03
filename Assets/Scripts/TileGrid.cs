@@ -229,11 +229,11 @@ public class TileGrid : MonoBehaviour
         List<Vector4> hallways = new();
         
             int counter = 0;
-        while(usedRooms.Count < nRooms-1){
+        while(usedRooms.Count < nRooms){
             counter++;
 
             if (counter > 10000){
-                Debug.Log($"roomLoop, found {usedRooms.Count -1} paths");
+                Debug.Log($"roomLoop, ");
               break;
             }
             int nextRoomId = usedRooms[Random.Range(0, usedRooms.Count)];
@@ -257,9 +257,9 @@ public class TileGrid : MonoBehaviour
                 //Get the other room id
                 otherRoomId = nextSide switch
                 {
-                    1 => nextRoomId - columns,
+                    1 => nextRoomId + columns,
                     2 => nextRoomId + 1,
-                    4 => nextRoomId + columns,
+                    4 => nextRoomId - columns,
                     _ => nextRoomId - 1,
                 };
                 if(counter2 > 100){
@@ -279,15 +279,12 @@ public class TileGrid : MonoBehaviour
 
             Vector4 hallway = GenerateHallway(firstId, secondId, nextSide == 2 || nextSide == 8, rooms, ref usedSides, columns);
 
-            //If no hallway can be created, skip
-            // if (hallway == Vector4.zero)
-            //     continue;
-            Debug.Log($"found hallway between {nextRoomId} and {otherRoomId} {nextSide == 2 || nextSide == 8}");
+            Debug.Log($"found hallway between {nextRoomId} and {otherRoomId} {nextSide == 2 || nextSide == 8}, from {hallway.x}, {hallway.y} to {hallway.z}, {hallway.w}");
             hallways.Add(hallway);
             usedRooms.Add(otherRoomId);
         }
 
-
+        Debug.Log($"found {hallways.Count} out of {nRooms - 1} paths");
         return hallways.ToArray();
     }
 
@@ -300,7 +297,7 @@ public class TileGrid : MonoBehaviour
     /// <param name="horizontal">If the rooms are horizontal or vertical located of eachother</param>
     /// <returns>A vector4 containing the points of the hallway</returns>
     private Vector4 GenerateHallway(int room1Id, int room2Id, bool horizontal, Vector4[,] rooms, ref byte[] sides, int columns){
-        Debug.Log($"r2: {room2Id}, on {room2Id/columns}, {room2Id % columns} r1: {room1Id}, on {room1Id / columns}, {room1Id % columns}");
+       // Debug.Log($"r2: {room2Id}, on {room2Id/columns}, {room2Id % columns} r1: {room1Id}, on {room1Id / columns}, {room1Id % columns}");
         Vector4 room1 = rooms[room1Id % columns, room1Id / columns];
         Vector4 room2 = rooms[room2Id % columns, room2Id / columns];
 
@@ -334,7 +331,7 @@ public class TileGrid : MonoBehaviour
         byte[] usedSides = new byte[nRooms];
 
         for(int i = 0; i < columns; i++){
-            usedSides[i] |= 1;
+            usedSides[i] |= 4;
         }
 
         //right row
@@ -344,7 +341,7 @@ public class TileGrid : MonoBehaviour
         }
 
         for(int i = 0; i < columns; i++){
-            usedSides[(rows - 1) * columns + i] |=4;
+            usedSides[(rows - 1) * columns + i] |=1;
         }
         //left row
         for(int i = 0; i < rows; i++){
